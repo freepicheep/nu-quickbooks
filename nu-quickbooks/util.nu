@@ -48,7 +48,6 @@ export def build-session [
 # Build standard QBO REST API headers.
 export def build-headers [access_token: string] {
     {
-        Content-Type: "application/json"
         Accept: "application/json"
         Authorization: $"Bearer ($access_token)"
         User-Agent: "nu-quickbooks"
