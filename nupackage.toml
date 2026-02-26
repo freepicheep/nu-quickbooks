@@ -1,0 +1,9 @@
+[package]
+name = "nu-quickbooks"
+version = "0.1.0"
+description = "Query and manage your QuickBooks Online data from Nushell"
+license = "MIT"
+authors = [
+  "Friedrich Stoltzfus"
+]
+nu-version = "0.110.0"
