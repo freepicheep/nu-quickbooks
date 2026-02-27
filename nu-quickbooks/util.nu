@@ -67,7 +67,7 @@ export def refresh-access-token [] {
 
     let response = (
         http post $TOKEN_URL
-        $"grant_type=refresh_token&refresh_token=($qb.refresh_token)"
+        {grant_type: "refresh_token", refresh_token: $qb.refresh_token}
         --content-type "application/x-www-form-urlencoded"
         --headers {
             Accept: "application/json"
