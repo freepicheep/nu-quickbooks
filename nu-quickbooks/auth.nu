@@ -7,37 +7,40 @@ use util.nu [ build-session refresh-access-token ]
 #
 # Supports two modes:
 # 1. Direct token:
-#      qb login --access-token TOKEN --company-id 12345
+#      qb login --access-token TOKEN --realm-id 12345
 # 2. Full OAuth2 (will auto-refresh the access token):
-#      qb login --client-id CID --client-secret SEC --refresh-token RT --company-id 12345
+#      qb login --client-id CID --client-secret SEC --refresh-token RT --realm-id 12345
+#
+# Note: --realm-id is the Realm ID returned in the OAuth callback URL.
+# This is different from your QuickBooks company name or number.
 @example "login with a direct access token" {
-    qb login --access-token "eyJ..." --company-id "1234567890"
+    qb login --access-token "eyJ..." --realm-id "1234567890"
 }
 @example "login with OAuth2 credentials (auto-refresh)" {
-    qb login --client-id "ABc..." --client-secret "XYz..." --refresh-token "AB1..." --company-id "1234567890"
+    qb login --client-id "ABc..." --client-secret "XYz..." --refresh-token "AB1..." --realm-id "1234567890"
 }
 @example "login to sandbox environment" {
-    qb login --access-token "eyJ..." --company-id "1234567890" --sandbox
+    qb login --access-token "eyJ..." --realm-id "1234567890" --sandbox
 }
 export def --env "qb login" [
     --access-token: string    # OAuth2 access token (direct login)
     --refresh-token: string   # OAuth2 refresh token
     --client-id: string       # OAuth2 client ID
     --client-secret: string   # OAuth2 client secret
-    --company-id: string      # QuickBooks company (realm) ID
+    --realm-id: string        # Realm ID from OAuth callback (used in API URLs)
     --sandbox                 # Use the sandbox API environment
     --minorversion: int       # QBO API minor version (default: 75)
 ] {
     let mv = if ($minorversion != null) { $minorversion } else { 75 }
 
-    if ($company_id == null) {
-        error make {msg: "You must provide --company-id"}
+    if ($realm_id == null) {
+        error make {msg: "You must provide --realm-id (the Realm ID from the OAuth callback URL)"}
     }
 
     if ($access_token != null) {
         # Direct token login
         $env.QUICKBOOKS = (
-            build-session $access_token $company_id
+            build-session $access_token $realm_id
             --sandbox=$sandbox
             --minorversion $mv
             --client-id $client_id
@@ -45,18 +48,18 @@ export def --env "qb login" [
             --refresh-token $refresh_token
         )
         let env_label = if $sandbox { "sandbox" } else { "production" }
-        print $"(ansi green)✓(ansi reset) Logged in to QuickBooks \(($env_label)\) — company ($company_id)"
+        print $"(ansi green)✓(ansi reset) Logged in to QuickBooks \(($env_label)\) — realm ($realm_id)"
         return
     }
 
     if ($client_id == null or $client_secret == null or $refresh_token == null) {
-        error make {msg: "You must provide either --access-token or --client-id/--client-secret/--refresh-token"}
+        error make {msg: "You must provide either --access-token or --client-id/--client-secret/--refresh-token (with --realm-id)"}
     }
 
     # OAuth2 refresh flow — get a fresh access token
     # We need a temporary session to call refresh-access-token
     $env.QUICKBOOKS = (
-        build-session "placeholder" $company_id
+        build-session "placeholder" $realm_id
         --sandbox=$sandbox
         --minorversion $mv
         --client-id $client_id
@@ -69,7 +72,7 @@ export def --env "qb login" [
     let new_refresh_token = ($token_response.refresh_token? | default $refresh_token)
 
     $env.QUICKBOOKS = (
-        build-session $new_access_token $company_id
+        build-session $new_access_token $realm_id
         --sandbox=$sandbox
         --minorversion $mv
         --client-id $client_id
@@ -77,7 +80,7 @@ export def --env "qb login" [
         --refresh-token $new_refresh_token
     )
     let env_label = if $sandbox { "sandbox" } else { "production" }
-    print $"(ansi green)✓(ansi reset) Logged in to QuickBooks \(($env_label)\) — company ($company_id) \(OAuth2 refresh\)"
+    print $"(ansi green)✓(ansi reset) Logged in to QuickBooks \(($env_label)\) — realm ($realm_id) \(OAuth2 refresh\)"
 }
 
 # Clear the QuickBooks session.
@@ -101,7 +104,7 @@ export def "qb whoami" [] {
 
     let qb = $env.QUICKBOOKS
     {
-        company_id: $qb.company_id
+        realm_id: $qb.realm_id
         sandbox: $qb.sandbox
         minorversion: $qb.minorversion
         api_url: $qb.api_url
@@ -125,7 +128,7 @@ export def --env "qb refresh" [] {
     let new_refresh = ($token_response.refresh_token? | default $qb.refresh_token)
 
     $env.QUICKBOOKS = (
-        build-session $token_response.access_token $qb.company_id
+        build-session $token_response.access_token $qb.realm_id
         --sandbox=$qb.sandbox
         --minorversion $qb.minorversion
         --client-id $qb.client_id

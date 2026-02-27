@@ -39,10 +39,10 @@ use nu-quickbooks *
 
 ```nu
 # 1. Authenticate with a direct access token
-qb login --access-token "eyJ..." --company-id "1234567890"
+qb login --access-token "eyJ..." --realm-id "1234567890"
 
 # Or authenticate with OAuth2 credentials (auto-refreshes the token)
-qb login --client-id "ABc..." --client-secret "XYz..." --refresh-token "AB1..." --company-id "1234567890"
+qb login --client-id "ABc..." --client-secret "XYz..." --refresh-token "AB1..." --realm-id "1234567890"
 
 # 2. Query records
 qb query "SELECT * FROM Customer WHERE Active = true"
@@ -85,7 +85,7 @@ Store your QuickBooks credentials in a `.env` file and load them:
 **Your `.env` File**
 ```env
 QB_ACCESS_TOKEN='eyJ...'
-QB_COMPANY_ID='1234567890'
+QB_REALM_ID='1234567890'
 ```
 
 **In Your Script**
@@ -93,7 +93,7 @@ QB_COMPANY_ID='1234567890'
 use /path/to/nu-quickbooks *
 
 load-env-file
-qb login --access-token $env.QB_ACCESS_TOKEN --company-id $env.QB_COMPANY_ID
+qb login --access-token $env.QB_ACCESS_TOKEN --realm-id $env.QB_REALM_ID
 ```
 
 ### Sandbox Environment
@@ -101,7 +101,7 @@ qb login --access-token $env.QB_ACCESS_TOKEN --company-id $env.QB_COMPANY_ID
 To use the QBO sandbox, add the `--sandbox` flag:
 
 ```nu
-qb login --access-token "eyJ..." --company-id "1234567890" --sandbox
+qb login --access-token "eyJ..." --realm-id "1234567890" --sandbox
 ```
 
 ## Commands

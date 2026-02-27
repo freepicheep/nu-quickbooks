@@ -21,7 +21,7 @@ const BUSINESS_OBJECTS = [
 # Build the session record stored in $env.QUICKBOOKS.
 export def build-session [
     access_token: string
-    company_id: string
+    realm_id: string
     --sandbox                      # Use sandbox API
     --minorversion: int = 75       # QBO minor version
     --client-id: string            # OAuth2 client ID (for refresh)
@@ -29,11 +29,11 @@ export def build-session [
     --refresh-token: string        # OAuth2 refresh token
 ] {
     let api_url = if $sandbox { $SANDBOX_API_URL } else { $PRODUCTION_API_URL }
-    let base_url = $"($api_url)/company/($company_id)"
+    let base_url = $"($api_url)/company/($realm_id)"
 
     {
         access_token: $access_token
-        company_id: $company_id
+        realm_id: $realm_id
         sandbox: $sandbox
         minorversion: $minorversion
         api_url: $api_url
@@ -75,6 +75,7 @@ export def refresh-access-token [] {
         }
         --full
         --allow-errors
+        --redirect-mode follow
     )
 
     if $response.status != 200 {
@@ -118,7 +119,7 @@ export def qb-call [
 
     let response = match ($method | str upcase) {
         "GET" => {
-            http get $full_url --headers $headers --full --allow-errors
+            http get $full_url --headers $headers --full --allow-errors --redirect-mode follow
         }
         "POST" => {
             if ($data != null) {
@@ -127,13 +128,13 @@ export def qb-call [
                 } else {
                     $data | to json
                 }
-                http post $full_url $body --headers $headers --content-type $ct --full --allow-errors
+                http post $full_url $body --headers $headers --content-type $ct --full --allow-errors --redirect-mode follow
             } else {
-                http post $full_url "" --headers $headers --content-type $ct --full --allow-errors
+                http post $full_url "" --headers $headers --content-type $ct --full --allow-errors --redirect-mode follow
             }
         }
         "DELETE" => {
-            http delete $full_url --headers $headers --full --allow-errors
+            http delete $full_url --headers $headers --full --allow-errors --redirect-mode follow
         }
         _ => {
             error make {msg: $"Unsupported HTTP method: ($method)"}
