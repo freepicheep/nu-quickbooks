@@ -146,7 +146,7 @@ Beginning August 1, 2025, Intuit is deprecating support for minor versions 1–7
 
 ## Disclaimers
 
-This module was ported from [python-quickbooks](https://github.com/ej2/python-quickbooks) and adapted for Nushell's record-based paradigm. Not all features have been fully tested. Use at your own risk.
+This module was ported from [python-quickbooks](https://github.com/ej2/python-quickbooks) with Opus 4.6 and adapted for Nushell's record-based paradigm. Not all features have been fully tested. Use at your own risk.
 
 ## License
 
