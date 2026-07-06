@@ -3,8 +3,11 @@
 # Usage:
 #   use nu-quickbooks *
 #
-#   # Authenticate
-#   qb login --access-token "eyJ..." --company-id "1234567890"
+#   # Authenticate — via the browser (fetches the refresh token for you)
+#   qb login --client-id "ABc..." --client-secret "XYz..."
+#
+#   # …or with a direct access token
+#   qb login --access-token "eyJ..." --realm-id "1234567890"
 #
 #   # Query
 #   qb query "SELECT * FROM Customer WHERE Active = true"

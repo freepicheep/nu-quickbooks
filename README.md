@@ -38,10 +38,13 @@ use nu-quickbooks *
 ## Quick Start
 
 ```nu
-# 1. Authenticate with a direct access token
+# 1. Authenticate via the browser — fetches the refresh token for you
+qb login --client-id "ABc..." --client-secret "XYz..."
+
+# Or authenticate with a direct access token
 qb login --access-token "eyJ..." --realm-id "1234567890"
 
-# Or authenticate with OAuth2 credentials (auto-refreshes the token)
+# Or authenticate with OAuth2 credentials you already have (auto-refreshes the token)
 qb login --client-id "ABc..." --client-secret "XYz..." --refresh-token "AB1..." --realm-id "1234567890"
 
 # 2. Query records
@@ -138,7 +141,17 @@ help qb login
 
 ## QuickBooks OAuth2
 
-This module requires OAuth2 tokens obtained through Intuit's developer portal. Follow the [OAuth 2.0 Guide](https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0) to get your tokens.
+You need an app in [Intuit's developer portal](https://developer.intuit.com/) to get a **client ID** and **client secret**. From there you can authorize entirely from Nushell — no OAuth Playground required:
+
+```nu
+qb login --client-id "ABc..." --client-secret "XYz..."
+```
+
+This opens your browser to Intuit's consent screen. After you approve, copy the URL you land on from the browser's address bar and paste it back at the prompt. `qb login` then exchanges the authorization code for an access token and refresh token, and reads the realm ID from the callback — so you don't pass `--realm-id` in this mode.
+
+**Redirect URI** — you must register a redirect URI in your Intuit app that matches `--redirect-uri` (default `http://localhost:8000/callback`). The page itself won't load (nothing is listening on that port); that's expected — you just need the URL from the address bar, which carries `?code=...&state=...&realmId=...`. Add `--sandbox` to authorize against the sandbox.
+
+Tokens are stored only in `$env.QUICKBOOKS` for the current session. Refresh the access token any time with `qb refresh`. See Intuit's [OAuth 2.0 Guide](https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0) for more detail.
 
 ## API Minor Version
 

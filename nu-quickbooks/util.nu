@@ -6,6 +6,10 @@ const MINIMUM_MINOR_VERSION = 75
 const SANDBOX_API_URL = "https://sandbox-quickbooks.api.intuit.com/v3"
 const PRODUCTION_API_URL = "https://quickbooks.api.intuit.com/v3"
 const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+const AUTHORIZE_URL = "https://appcenter.intuit.com/connect/oauth2"
+
+# Default OAuth2 scope — accounting access.
+export const DEFAULT_SCOPE = "com.intuit.quickbooks.accounting"
 
 const BUSINESS_OBJECTS = [
     "Account", "Attachable", "Bill", "BillPayment",
@@ -81,6 +85,55 @@ export def refresh-access-token [] {
     if $response.status != 200 {
         let detail = try { $response.body | to json } catch { $"($response.body)" }
         error make {msg: $"Token refresh failed \(HTTP ($response.status)\): ($detail)"}
+    }
+
+    $response.body
+}
+
+# Build the OAuth2 authorization-code consent URL the user opens in their browser.
+export def build-authorize-url [
+    client_id: string
+    redirect_uri: string
+    scope: string
+    state: string
+] {
+    let query = (
+        {client_id: $client_id, response_type: "code", scope: $scope, redirect_uri: $redirect_uri, state: $state}
+        | transpose key value
+        | each {|kv| $"($kv.key)=($kv.value | url encode --all)" }
+        | str join "&"
+    )
+    $"($AUTHORIZE_URL)?($query)"
+}
+
+# Exchange an OAuth2 authorization code for access and refresh tokens.
+# Used by the browser login flow before a session exists, so it takes the
+# client credentials directly rather than reading $env.QUICKBOOKS.
+# Returns a record with access_token and refresh_token.
+export def exchange-auth-code [
+    client_id: string
+    client_secret: string
+    code: string
+    redirect_uri: string
+] {
+    let auth = ($"($client_id):($client_secret)" | encode base64)
+
+    let response = (
+        http post $TOKEN_URL
+        {grant_type: "authorization_code", code: $code, redirect_uri: $redirect_uri}
+        --content-type "application/x-www-form-urlencoded"
+        --headers {
+            Accept: "application/json"
+            Authorization: $"Basic ($auth)"
+        }
+        --full
+        --allow-errors
+        --redirect-mode follow
+    )
+
+    if $response.status != 200 {
+        let detail = try { $response.body | to json } catch { $"($response.body)" }
+        error make {msg: $"Authorization code exchange failed \(HTTP ($response.status)\): ($detail)"}
     }
 
     $response.body
