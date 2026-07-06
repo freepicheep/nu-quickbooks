@@ -13,14 +13,39 @@ use util.nu [ qb-call ]
 @example "query all records (auto-paginate)" { qb query "SELECT * FROM Customer" --all }
 @example "get raw response" { qb query "SELECT * FROM Customer MAXRESULTS 5" --raw }
 export def "qb query" [
-    select: string          # QBO SQL query string (e.g. "SELECT * FROM Customer")
-    --all                   # Auto-paginate to fetch all records
-    --raw                   # Return the raw QueryResponse
-    --max-results: int      # Maximum results per page
-    --start-position: int   # Starting position (1-based)
+    select: string # QBO SQL query string (e.g. "SELECT * FROM Customer")
+    --all # Auto-paginate to fetch all records
+    --raw # Return the raw QueryResponse
+    --max-results: int # Maximum results per page
+    --start-position: int # Starting position (1-based)
 ] {
     let qb = $env.QUICKBOOKS
     let url = $"($qb.base_url)/query"
+
+    if $all {
+        # Auto-paginate with explicit STARTPOSITION/MAXRESULTS.
+        # QBO does not return totalCount for normal SELECT queries, so we page
+        # forward until a page comes back with fewer than page_size records.
+        let page_size = if ($max_results != null) { $max_results } else { 100 }
+
+        mut all_records = []
+        mut pos = if ($start_position != null) { $start_position } else { 1 }
+        loop {
+            let page_query = $"($select) STARTPOSITION ($pos) MAXRESULTS ($page_size)"
+            let page_qr = (qb-call "POST" $url --data $page_query --content-type "application/text").QueryResponse
+
+            # Find entity key in QueryResponse (skip metadata keys)
+            let page_keys = ($page_qr | columns | where {|c| $c not-in ["startPosition" "maxResults" "totalCount"] })
+            let page = if ($page_keys | is-empty) { [] } else { $page_qr | get ($page_keys | first) }
+
+            $all_records = ($all_records | append $page)
+
+            if (($page | length) < $page_size) { break }
+            $pos = $pos + $page_size
+        }
+
+        return $all_records
+    }
 
     # Build the full query with optional pagination clauses
     mut query = $select
@@ -38,42 +63,8 @@ export def "qb query" [
         return $qr
     }
 
-    if $all {
-        # Auto-paginate: re-query with increasing STARTPOSITION
-        let total = ($qr.totalCount? | default 0)
-        let page_size = if ($max_results != null) { $max_results } else { 100 }
-
-        # Collect first page
-        mut all_records = []
-        # Find entity key in QueryResponse (skip metadata keys)
-        let entity_keys = ($qr | columns | where {|c| $c not-in ["startPosition", "maxResults", "totalCount"]})
-        let entity_key = if ($entity_keys | is-empty) { null } else { $entity_keys | first }
-
-        if ($entity_key != null) {
-            $all_records = ($qr | get $entity_key)
-        }
-
-        if ($total > ($all_records | length)) {
-            mut pos = ($all_records | length) + 1
-            while ($pos <= $total) {
-                let page_query = $"($select) STARTPOSITION ($pos) MAXRESULTS ($page_size)"
-                let page_result = (qb-call "POST" $url --data $page_query --content-type "application/text")
-                let page_qr = $page_result.QueryResponse
-
-                let page_keys = ($page_qr | columns | where {|c| $c not-in ["startPosition", "maxResults", "totalCount"]})
-                if (not ($page_keys | is-empty)) {
-                    let page_key = ($page_keys | first)
-                    $all_records = ($all_records | append ($page_qr | get $page_key))
-                }
-                $pos = $pos + $page_size
-            }
-        }
-
-        return $all_records
-    }
-
     # Single page — extract entity records
-    let entity_keys = ($qr | columns | where {|c| $c not-in ["startPosition", "maxResults", "totalCount"]})
+    let entity_keys = ($qr | columns | where {|c| $c not-in ["startPosition" "maxResults" "totalCount"] })
     if ($entity_keys | is-empty) {
         return []
     }
@@ -88,8 +79,8 @@ export def "qb query" [
 @example "count active customers" { qb count Customer "Active = true" }
 @example "count invoices for a customer" { qb count Invoice "CustomerRef = '100'" }
 export def "qb count" [
-    entity: string          # Entity type (e.g. Customer, Invoice)
-    where_clause?: string   # Optional WHERE clause (without 'WHERE')
+    entity: string # Entity type (e.g. Customer, Invoice)
+    where_clause?: string # Optional WHERE clause (without 'WHERE')
 ] {
     let select = if ($where_clause != null) {
         $"SELECT COUNT\(*\) FROM ($entity) WHERE ($where_clause)"
@@ -105,11 +96,11 @@ export def "qb count" [
 #
 # See Intuit documentation for available report types and parameters.
 @example "get Profit and Loss report" { qb report ProfitAndLoss }
-@example "get Balance Sheet with date range" { qb report BalanceSheet --params {start_date: "2024-01-01", end_date: "2024-12-31"} }
+@example "get Balance Sheet with date range" { qb report BalanceSheet --params {start_date: "2024-01-01" end_date: "2024-12-31"} }
 @example "get Trial Balance" { qb report TrialBalance }
 export def "qb report" [
-    report_type: string     # Report type (e.g. ProfitAndLoss, BalanceSheet, TrialBalance)
-    --params: record        # Optional query parameters for the report
+    report_type: string # Report type (e.g. ProfitAndLoss, BalanceSheet, TrialBalance)
+    --params: record # Optional query parameters for the report
 ] {
     let qb = $env.QUICKBOOKS
     let url = $"($qb.base_url)/reports/($report_type)"
