@@ -8,13 +8,40 @@ const PRODUCTION_API_URL = "https://quickbooks.api.intuit.com/v3"
 const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 
 const BUSINESS_OBJECTS = [
-    "Account", "Attachable", "Bill", "BillPayment",
-    "Class", "CreditMemo", "Customer", "CustomerType", "CompanyCurrency",
-    "Department", "Deposit", "Employee", "Estimate", "ExchangeRate", "Invoice",
-    "Item", "JournalEntry", "Payment", "PaymentMethod", "Preferences",
-    "Purchase", "PurchaseOrder", "RefundReceipt",
-    "SalesReceipt", "TaxAgency", "TaxCode", "TaxService/Taxcode", "TaxRate", "Term",
-    "TimeActivity", "Transfer", "Vendor", "VendorCredit", "CreditCardPayment",
+    "Account"
+    "Attachable"
+    "Bill"
+    "BillPayment"
+    "Class"
+    "CreditMemo"
+    "Customer"
+    "CustomerType"
+    "CompanyCurrency"
+    "Department"
+    "Deposit"
+    "Employee"
+    "Estimate"
+    "ExchangeRate"
+    "Invoice"
+    "Item"
+    "JournalEntry"
+    "Payment"
+    "PaymentMethod"
+    "Preferences"
+    "Purchase"
+    "PurchaseOrder"
+    "RefundReceipt"
+    "SalesReceipt"
+    "TaxAgency"
+    "TaxCode"
+    "TaxService/Taxcode"
+    "TaxRate"
+    "Term"
+    "TimeActivity"
+    "Transfer"
+    "Vendor"
+    "VendorCredit"
+    "CreditCardPayment"
     "RecurringTransaction"
 ]
 
@@ -22,11 +49,11 @@ const BUSINESS_OBJECTS = [
 export def build-session [
     access_token: string
     realm_id: string
-    --sandbox                      # Use sandbox API
-    --minorversion: int = 75       # QBO minor version
-    --client-id: string            # OAuth2 client ID (for refresh)
-    --client-secret: string        # OAuth2 client secret (for refresh)
-    --refresh-token: string        # OAuth2 refresh token
+    --sandbox # Use sandbox API
+    --minorversion: int = 75 # QBO minor version
+    --client-id: string # OAuth2 client ID (for refresh)
+    --client-secret: string # OAuth2 client secret (for refresh)
+    --refresh-token: string # OAuth2 refresh token
 ] {
     let api_url = if $sandbox { $SANDBOX_API_URL } else { $PRODUCTION_API_URL }
     let base_url = $"($api_url)/company/($realm_id)"
@@ -67,7 +94,7 @@ export def refresh-access-token [] {
 
     let response = (
         http post $TOKEN_URL
-        {grant_type: "refresh_token", refresh_token: $qb.refresh_token}
+        {grant_type: "refresh_token" refresh_token: $qb.refresh_token}
         --content-type "application/x-www-form-urlencoded"
         --headers {
             Accept: "application/json"
@@ -92,9 +119,9 @@ export def refresh-access-token [] {
 export def qb-call [
     method: string
     url: string
-    --data: any        # Body for POST requests
-    --params: record   # Additional query parameters
-    --content-type: string  # Override content type
+    --data: any # Body for POST requests
+    --params: record # Additional query parameters
+    --content-type: string # Override content type
 ] {
     let qb = $env.QUICKBOOKS
     let headers = $qb.headers
@@ -164,12 +191,14 @@ export def qb-error [status: int url: string content: any] {
         let fault = $content.Fault?
         if ($fault != null) {
             let errors = ($fault.Error? | default [])
-            let messages = ($errors | each {|e|
-                let code = ($e.code? | default "")
-                let msg = ($e.Message? | default "")
-                let detail = ($e.Detail? | default "")
-                $"  Code ($code): ($msg) — ($detail)"
-            } | str join "\n")
+            let messages = (
+                $errors | each {|e|
+                    let code = ($e.code? | default "")
+                    let msg = ($e.Message? | default "")
+                    let detail = ($e.Detail? | default "")
+                    $"  Code ($code): ($msg) — ($detail)"
+                } | str join "\n"
+            )
             $messages
         } else {
             null
@@ -216,6 +245,7 @@ export def --env load-env-file [path?: path = '.env'] {
 # Parses `KEY=value` text into a record.
 export def 'from kv' []: oneof<string, nothing> -> record {
     default ''
+    | lines
     | parse '{key}={value}'
     | update value { from yaml }
     | transpose -dlr
